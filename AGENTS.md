@@ -16,9 +16,13 @@ Dujiao-Next 是一个模块化单体数字商品商城：
 
 - `origin` 是 Gloamere 定制仓库，只向该远端推送。
 - `upstream` 是官方 Dujiao-Next 仓库，只用于获取上游更新，禁止向其推送。
-- `dev-gloamere` 是日常开发和上游更新集成分支。
-- `main-gloamere` 是稳定定制分支。
-- `main` 保持与官方主线接近，不直接承载 Gloamere 定制修改。
+- `main` 是 Gloamere 稳定定制分支，也是仓库默认分支。
+- `develop` 是日常开发和上游更新集成分支。
+- 官方代码通过 `upstream/main` 获取，不另设长期镜像分支。
+- 功能与修复从 `develop` 创建 `feat/<name>`、`fix/<name>` 短期分支，通过 PR 合入 `develop`；上游更新使用 `sync/upstream-<version-or-date>` 短期分支。
+- `main` 和 `develop` 均要求通过 PR 合入且 CI 检查通过，禁止强推与删除；单人开发不强制他人审批。
+- CI 必须覆盖 `main`、`develop` 的 push 和 PR，必需检查为 `Verify installer`、`Verify API`、`Verify release config`、`Verify fullstack build`。
+- 上游同步 PR 和 `develop` 到 `main` 的发布 PR 使用 merge commit，保留共同历史，不使用 squash 或 rebase 合并。稳定分支上的紧急修复应及时合回 `develop`。
 - 未经明确要求，不提交、推送、改写历史或向稳定分支合并。
 
 ## 修改原则
@@ -84,12 +88,16 @@ corepack pnpm run build
 
 ## 上游同步
 
-在工作区干净时，将官方更新先合入开发分支：
+在工作区干净时，从最新开发分支创建一次性同步分支（替换示例中的日期或版本，每次使用新名称）：
 
 ```bash
-git switch dev-gloamere
+git switch develop
+git pull --ff-only origin develop
 git fetch upstream
+git switch -c sync/upstream-20260920-01
 git merge upstream/main
 ```
 
-解决冲突并验证后推送 `dev-gloamere`。只有在定制版本验证通过后，才将其合入 `main-gloamere`。
+解决冲突并完成验证，获得提交与推送授权后，将同步分支推送到 `origin`，创建目标为 `develop` 的 PR。CI 通过后使用 merge commit 合入；发布时再创建 `develop` 到 `main` 的 PR，同样在 CI 通过后使用 merge commit 合入。
+
+代码合并不等于部署。当前本地 `.runtime/` 运行的是下载的发行二进制，源码切换或合并后不会自动更新运行中的程序；验证源码变更需要重新构建并启动对应版本。
