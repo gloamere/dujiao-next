@@ -32,7 +32,7 @@ const (
 	binaryName = "dujiao-next"
 
 	downloadTimeout = 10 * time.Minute
-	updateUserAgent = "dujiao-next-self-updater"
+	updateUserAgent = "gloamere-self-updater"
 )
 
 var (

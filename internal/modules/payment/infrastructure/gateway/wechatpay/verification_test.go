@@ -248,7 +248,7 @@ func TestWechatPayPublicKeySecurityEchoSuccess(t *testing.T) {
 			t.Error("public-key signature test must not include encrypted_echo_message")
 		}
 		echoMessage, _ := payload["echo_message"].(string)
-		if !strings.HasPrefix(echoMessage, "dujiao-next-") {
+		if !strings.HasPrefix(echoMessage, "gloamere-") {
 			t.Errorf("unexpected echo_message: %q", echoMessage)
 		}
 		responseBody, err := json.Marshal(map[string]string{"echo_message": echoMessage})

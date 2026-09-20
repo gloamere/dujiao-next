@@ -179,7 +179,7 @@ func (s *Service) SendCustomEmail(toEmail, subject, body string) error {
 	}
 	body = strings.TrimSpace(body)
 	if body == "" {
-		body = "这是一封来自 Dujiao-Next 的 SMTP 测试邮件，说明当前配置可正常发送。"
+		body = "这是一封来自 Gloamere 的 SMTP 测试邮件，说明当前配置可正常发送。"
 	}
 	return s.sendTextEmail(toEmail, subject, body)
 }
@@ -243,7 +243,7 @@ func (s *Service) sendSMTPMessage(addr, toEmail string, msg []byte) error {
 }
 
 func buildEmailMessageWithAttachment(from, to, subject, body, attachName, attachContent, replyTo string) string {
-	boundary := "----=_DujiaoNextBoundary_" + fmt.Sprintf("%d", len(body)+len(attachContent))
+	boundary := "----=_GloamereBoundary_" + fmt.Sprintf("%d", len(body)+len(attachContent))
 
 	var buf bytes.Buffer
 	writeStandardHeaders(&buf, from, to, subject, replyTo)

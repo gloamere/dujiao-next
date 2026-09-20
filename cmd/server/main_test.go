@@ -24,7 +24,7 @@ func bannerLinks(banner string) []string {
 	return links
 }
 
-func TestWriteStartupBannerOmitsRetiredFrontendRepositories(t *testing.T) {
+func TestWriteStartupBannerUsesGloamereBrand(t *testing.T) {
 	var output strings.Builder
 	writeStartupBanner(&output)
 
@@ -32,22 +32,25 @@ func TestWriteStartupBannerOmitsRetiredFrontendRepositories(t *testing.T) {
 	for _, removed := range []string{
 		"https://github.com/dujiao-next/user",
 		"https://github.com/dujiao-next/admin",
+		"https://github.com/dujiao-next",
+		"https://dujiao-next.com",
 	} {
 		if strings.Contains(banner, removed) {
 			t.Errorf("startup banner still contains retired repository: %s", removed)
 		}
 	}
 
-	// 用整 token 相等比较：组织地址是主仓地址的前缀，子串匹配挡不住"只剩主仓"的退化。
 	links := bannerLinks(banner)
 	for _, retained := range []string{
-		"https://github.com/dujiao-next",
-		"https://github.com/dujiao-next/dujiao-next",
-		"https://dujiao-next.com",
+		"https://github.com/gloamere/dujiao-next",
+		"https://gloamere.com",
 	} {
 		if !slices.Contains(links, retained) {
-			t.Errorf("startup banner is missing retained repository: %s (got %v)", retained, links)
+			t.Errorf("startup banner is missing Gloamere link: %s (got %v)", retained, links)
 		}
+	}
+	if !strings.Contains(banner, "Gloamere") {
+		t.Fatal("startup banner is missing the Gloamere brand")
 	}
 }
 

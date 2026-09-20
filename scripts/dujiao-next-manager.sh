@@ -4,7 +4,7 @@ set -Eeuo pipefail
 umask 077
 
 readonly MANAGER_VERSION="1.0.0"
-readonly GITHUB_REPOSITORY="dujiao-next/dujiao-next"
+readonly GITHUB_REPOSITORY="gloamere/dujiao-next"
 readonly GITHUB_API_URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest"
 readonly MANAGER_SOURCE_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/scripts/dujiao-next-manager.sh"
 readonly SERVICE_USER="dujiao"
@@ -90,7 +90,7 @@ acquire_lock() {
   mkdir -p -- "$(dirname "$LOCK_FILE")"
   exec 9>"$LOCK_FILE"
   if ! flock -n 9; then
-    die "另一个 Dujiao-Next 管理进程正在运行，请稍后重试。"
+    die "另一个 Gloamere 管理进程正在运行，请稍后重试。"
   fi
 }
 
@@ -323,7 +323,7 @@ archive_name_for() {
 
 validate_download_url() {
   local url=$1
-  [[ "$url" =~ ^https://github\.com/dujiao-next/dujiao-next/releases/download/[^/]+/[^/?#]+$ ]]
+  [[ "$url" =~ ^https://github\.com/gloamere/dujiao-next/releases/download/[^/]+/[^/?#]+$ ]]
 }
 
 validate_effective_download_url() {
@@ -902,7 +902,7 @@ write_redis_config() {
 render_redis_unit() {
   cat <<EOF
 [Unit]
-Description=Dujiao-Next dedicated Redis
+Description=Gloamere dedicated Redis
 After=network.target
 Before=${APP_SERVICE}
 
@@ -928,7 +928,7 @@ EOF
 render_app_unit() {
   cat <<EOF
 [Unit]
-Description=Dujiao-Next
+Description=Gloamere
 Wants=network-online.target
 After=network-online.target ${REDIS_SERVICE}
 Requires=${REDIS_SERVICE}
@@ -1281,7 +1281,7 @@ print(json.dumps({"username":parts[0].decode(),"password":parts[1].decode()}))
   printf '%s\0' "$recipient" | python3 -c '
 import json, sys
 recipient=sys.stdin.buffer.read().split(b"\0")[0].decode()
-print(json.dumps({"to_email":recipient,"subject":"Dujiao-Next SMTP 安装测试","body":"SMTP 配置测试成功。"}, ensure_ascii=False))
+print(json.dumps({"to_email":recipient,"subject":"Gloamere SMTP 安装测试","body":"SMTP 配置测试成功。"}, ensure_ascii=False))
 ' > "$test_request"
   chmod 0600 "$test_request"
   curl --fail --silent --show-error --max-time 45 \
@@ -1349,7 +1349,7 @@ collect_smtp_config() {
   SMTP_USERNAME=""
   SMTP_PASSWORD=""
   SMTP_FROM=""
-  SMTP_FROM_NAME="Dujiao-Next"
+  SMTP_FROM_NAME="Gloamere"
   SMTP_USE_TLS=true
   SMTP_USE_SSL=false
   SMTP_TEST_RECIPIENT=""
@@ -1363,7 +1363,7 @@ collect_smtp_config() {
   SMTP_USERNAME=$(ui_input "SMTP 用户名" "允许留空（取决于服务商）" "") || exit 130
   SMTP_PASSWORD=$(ui_password "SMTP 密码" "允许留空（取决于服务商）；推荐填写授权码而非账户登录密码") || exit 130
   SMTP_FROM=$(prompt_validated validate_email "发件地址" "请输入发件人邮箱" "")
-  SMTP_FROM_NAME=$(ui_input "发件人名称" "邮件中显示的名称" "Dujiao-Next") || exit 130
+  SMTP_FROM_NAME=$(ui_input "发件人名称" "邮件中显示的名称" "Gloamere") || exit 130
   local encryption
   encryption=$(ui_menu "SMTP 加密" "请选择连接方式" \
     starttls "STARTTLS（通常为 587）" \
@@ -1378,7 +1378,7 @@ collect_smtp_config() {
 }
 
 collect_install_input() {
-  DOMAIN=$(prompt_validated validate_domain "商城域名" "请输入已解析到本服务器的单个域名（不含 https:// 和路径）" "")
+  DOMAIN=$(prompt_validated validate_domain "商城域名" "请输入已解析到本服务器的单个域名（不含 https:// 和路径）" "gloamere.com")
   DOMAIN=$(lowercase "$DOMAIN")
   ACME_EMAIL=$(prompt_validated validate_email "证书邮箱" "用于 Lets Encrypt 到期通知" "")
   ADMIN_USERNAME=$(prompt_validated validate_admin_username "管理员账号" "3-64 位，仅允许字母、数字、点、下划线、@ 和连字符" "admin")
@@ -1494,7 +1494,7 @@ run_install() {
     check_os_support
     resume_values_from_state
     if [[ "$(state_get phase)" == "installed" ]]; then
-      ui_message "已经安装" "Dujiao-Next 已安装完成。\n商城：https://${DOMAIN}\n后台：https://${DOMAIN}${ADMIN_PATH}/"
+      ui_message "已经安装" "Gloamere 已安装完成。\n商城：https://${DOMAIN}\n后台：https://${DOMAIN}${ADMIN_PATH}/"
       return 0
     fi
     install_dependencies
@@ -1543,7 +1543,7 @@ run_install() {
   if ! phase_at_least "$phase" services_ready; then
     systemctl enable --now "$REDIS_SERVICE"
     systemctl enable --now "$APP_SERVICE"
-    wait_for_local_health "$APP_PORT" || die "Dujiao-Next 本机健康检查失败"
+    wait_for_local_health "$APP_PORT" || die "Gloamere 本机健康检查失败"
     ensure_loopback_bindings "$APP_PORT" "$REDIS_PORT"
 
     ADMIN_USERNAME=$(config_read bootstrap.default_admin_username 2>/dev/null || true)
@@ -1583,7 +1583,7 @@ run_install() {
 }
 
 require_installed_state() {
-  state_exists || die "未找到由本安装器管理的 Dujiao-Next"
+  state_exists || die "未找到由本安装器管理的 Gloamere"
 }
 
 show_status() {
@@ -1618,7 +1618,7 @@ Redis 监听：127.0.0.1:${REDIS_PORT}
 证书到期：${cert_expiry}
 EOF
 )
-  ui_message "Dujiao-Next 状态" "$message"
+  ui_message "Gloamere 状态" "$message"
 }
 
 show_logs() {
@@ -1626,7 +1626,7 @@ show_logs() {
   local target=${1:-}
   if [[ -z "$target" ]]; then
     target=$(ui_menu "查看日志" "请选择日志来源" \
-      app "Dujiao-Next 应用" \
+      app "Gloamere 应用" \
       redis "独立 Redis" \
       nginx "Nginx" \
       certbot "Certbot") || return 0
@@ -1810,7 +1810,7 @@ create_uninstall_backup() {
   cp -a -- "${INSTALL_DIR}/uploads" "${staging}/uploads" || return 1
   cp -p -- "$STATE_FILE" "${staging}/install-state.json" || return 1
   cat > "${staging}/README.txt" <<EOF || return 1
-Dujiao-Next uninstall backup
+Gloamere uninstall backup
 Created: ${timestamp}
 Restore requires config.yml, db/, and uploads/ together.
 The app.secret_key in config.yml is required to decrypt stored secrets.
@@ -1877,7 +1877,7 @@ uninstall_managed() {
     log_info "恢复备份保留在：$backup"
   fi
   rm -f -- "$MANAGER_BIN"
-  ui_message "卸载完成" "Dujiao-Next 已卸载。\n恢复备份：$([[ "$destroy" == "true" ]] && printf '已销毁' || printf '%s' "$backup")"
+  ui_message "卸载完成" "Gloamere 已卸载。\n恢复备份：$([[ "$destroy" == "true" ]] && printf '已销毁' || printf '%s' "$backup")"
 }
 
 show_smtp_hint() {
@@ -1890,11 +1890,11 @@ main_menu() {
   while true; do
     local choice
     if ! state_exists; then
-      choice=$(ui_menu "Dujiao-Next 管理器" "未检测到已完成安装" \
+      choice=$(ui_menu "Gloamere 管理器" "未检测到已完成安装" \
         install "安装或继续中断的安装" \
         exit "退出") || return 0
     else
-      choice=$(ui_menu "Dujiao-Next 管理器" "请选择操作" \
+      choice=$(ui_menu "Gloamere 管理器" "请选择操作" \
         status "查看状态" \
         logs "查看日志" \
         start "启动服务" \
@@ -1928,7 +1928,7 @@ main_menu() {
 
 usage() {
   cat <<'EOF'
-Dujiao-Next 官方安装与运维管理器
+Gloamere 官方安装与运维管理器
 
 用法：
   dujiao-next-manager                         打开交互式管理菜单

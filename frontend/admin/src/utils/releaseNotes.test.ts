@@ -60,7 +60,7 @@ describe('renderReleaseNotes', () => {
         '## 更新内容',
         '',
         '- 修复 **支付回调** 问题',
-        '- 见 [文档](https://dujiao-next.com/deploy/)',
+        '- 见 [文档](https://gloamere.com)',
         '',
         '| 项 | 值 |',
         '| --- | --- |',
@@ -78,8 +78,8 @@ describe('renderReleaseNotes', () => {
   })
 
   it('给外链补上 target 与 rel，避免 window.opener 反向控制', () => {
-    const html = renderReleaseNotes('[docs](https://dujiao-next.com/deploy/)')
-    expect(html).toContain('href="https://dujiao-next.com/deploy/"')
+    const html = renderReleaseNotes('[docs](https://gloamere.com)')
+    expect(html).toContain('href="https://gloamere.com"')
     expect(html).toContain('target="_blank"')
     expect(html).toContain('rel="noopener noreferrer"')
   })

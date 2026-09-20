@@ -2,4 +2,5 @@
 
 package adgateway
 
-const ServerURL = "https://ads-gateway.dujiao-next.com"
+// Gloamere 默认不连接第三方广告网关。
+const ServerURL = ""

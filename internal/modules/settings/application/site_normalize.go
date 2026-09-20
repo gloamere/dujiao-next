@@ -141,8 +141,8 @@ func normalizeSiteContact(raw interface{}) map[string]interface{} {
 func normalizeSiteBrand(raw interface{}) map[string]interface{} {
 	// site_logo 用于前台导航栏、页脚等页面品牌展示，与浏览器 favicon 的 site_icon 保持独立。
 	result := map[string]interface{}{
-		"site_name":        "",
-		"site_url":         "",
+		"site_name":        defaultSiteName,
+		"site_url":         defaultSiteURL,
 		"site_icon":        "",
 		"site_logo":        "",
 		"site_description": normalizeSiteLocalizedField(nil),
@@ -151,9 +151,17 @@ func normalizeSiteBrand(raw interface{}) map[string]interface{} {
 	if !ok {
 		return result
 	}
-	result["site_name"] = normalizeSettingText(brandMap["site_name"])
-	result["site_url"] = strings.TrimRight(normalizeSettingText(brandMap["site_url"]), "/")
-	result["site_icon"] = normalizeSettingText(brandMap["site_icon"])
+	if siteName := normalizeSettingText(brandMap["site_name"]); siteName != "" && siteName != "Dujiao-Next" && siteName != "Dujiao Next" && siteName != "D&J Studio" {
+		result["site_name"] = siteName
+	}
+	if siteURL := strings.TrimRight(normalizeSettingText(brandMap["site_url"]), "/"); siteURL != "" && siteURL != "https://dujiao-next.com" {
+		result["site_url"] = siteURL
+	}
+	siteIcon := normalizeSettingText(brandMap["site_icon"])
+	if siteIcon == "/dj.svg" || siteIcon == "dj.svg" {
+		siteIcon = "/gloamere.svg"
+	}
+	result["site_icon"] = siteIcon
 	// 未配置 Logo 时保留空字符串，让前台继续使用各主题原有的 fallback 行为。
 	result["site_logo"] = normalizeSettingText(brandMap["site_logo"])
 	result["site_description"] = normalizeSiteLocalizedField(brandMap["site_description"])

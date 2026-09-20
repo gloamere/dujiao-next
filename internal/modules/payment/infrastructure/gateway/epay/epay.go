@@ -257,7 +257,7 @@ func createV1(ctx context.Context, cfg *Config, input CreateInput, payType strin
 	if err := json.Unmarshal(respBytes, &resp); err != nil {
 		return nil, ErrResponseInvalid
 	}
-	if resp.Code != 1 {
+	if resp.Code != 1 && resp.Code != http.StatusOK {
 		return nil, fmt.Errorf("%w: %s", ErrResponseInvalid, resp.Msg)
 	}
 	result := &CreateResult{

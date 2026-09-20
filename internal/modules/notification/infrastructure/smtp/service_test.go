@@ -265,7 +265,7 @@ func TestBuildVerifyCodeContentUsesResolvedWhiteLabelBrand(t *testing.T) {
 	if !strings.Contains(body, "白标商店") || !strings.Contains(body, "https://shop.example.test") {
 		t.Fatalf("body should contain white-label brand only, got: %s", body)
 	}
-	if strings.Contains(body, "Dujiao-Next") || strings.Contains(body, "main.example.test") {
+	if strings.Contains(body, "Gloamere") || strings.Contains(body, "main.example.test") {
 		t.Fatalf("body leaked main-site brand: %s", body)
 	}
 }
@@ -463,7 +463,7 @@ func TestEmailServiceSendOffice365Integration(t *testing.T) {
 		Username: username,
 		Password: password,
 		From:     from,
-		FromName: "Dujiao Next",
+		FromName: "Gloamere",
 		UseTLS:   true,
 		UseSSL:   false,
 	})

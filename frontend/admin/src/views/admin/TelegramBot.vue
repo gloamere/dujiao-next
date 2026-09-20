@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { formatDate } from '@/utils/format'
 import { Bot, ExternalLink, Wifi, WifiOff, RefreshCw, Send, KeyRound, ShieldAlert } from 'lucide-vue-next'
 
-const LICENSE_PURCHASE_URL = 'https://dujiao-next.com/services/telegram-bot'
+const LICENSE_PURCHASE_URL = 'https://gloamere.com'
 
 const { t } = useI18n()
 

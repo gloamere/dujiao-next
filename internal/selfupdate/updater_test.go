@@ -90,7 +90,7 @@ func TestValidateDownloadURL(t *testing.T) {
 		raw     string
 		wantErr bool
 	}{
-		{"https://github.com/dujiao-next/dujiao-next/releases/download/v1/x.tar.gz", false},
+		{"https://github.com/gloamere/dujiao-next/releases/download/v1/x.tar.gz", false},
 		{"https://objects.githubusercontent.com/foo", false},
 		{"https://release-assets.githubusercontent.com/foo", false},
 		// 非 HTTPS 一律拒绝

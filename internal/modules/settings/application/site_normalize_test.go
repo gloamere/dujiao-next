@@ -94,8 +94,41 @@ func TestGetSiteBrand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get site brand with missing field failed: %v", err)
 	}
-	if brand.SiteName != "" || brand.SiteURL != "" {
-		t.Fatalf("expected empty site brand, got %+v", brand)
+	if brand.SiteName != "Gloamere" || brand.SiteURL != "https://gloamere.com" {
+		t.Fatalf("expected Gloamere site brand defaults, got %+v", brand)
+	}
+}
+
+func TestGetSiteBrandMigratesLegacyDefaults(t *testing.T) {
+	repo := newMockSettingRepo()
+	svc := NewService(repo)
+	repo.store[constants.SettingKeySiteConfig] = map[string]interface{}{
+		"brand": map[string]interface{}{
+			"site_name": "Dujiao-Next",
+			"site_url":  "https://dujiao-next.com/",
+		},
+	}
+
+	brand, err := svc.GetSiteBrand()
+	if err != nil {
+		t.Fatalf("get legacy site brand failed: %v", err)
+	}
+	if brand.SiteName != "Gloamere" || brand.SiteURL != "https://gloamere.com" {
+		t.Fatalf("expected migrated Gloamere site brand, got %+v", brand)
+	}
+}
+
+func TestNormalizeSiteBrandMigratesLegacyDefaults(t *testing.T) {
+	brand := normalizeSiteBrand(map[string]interface{}{
+		"site_name": "D&J Studio",
+		"site_url":  "https://dujiao-next.com/",
+		"site_icon": "/dj.svg",
+	})
+	if brand["site_name"] != "Gloamere" || brand["site_url"] != "https://gloamere.com" {
+		t.Fatalf("expected migrated Gloamere defaults, got %+v", brand)
+	}
+	if brand["site_icon"] != "/gloamere.svg" {
+		t.Fatalf("expected migrated Gloamere icon, got %+v", brand)
 	}
 }
 
@@ -199,7 +232,7 @@ func TestUpdateSiteSettingNormalized(t *testing.T) {
 	if !ok {
 		t.Fatalf("invalid brand payload type: %T", result["brand"])
 	}
-	if brand["site_name"] != "" {
+	if brand["site_name"] != "Gloamere" {
 		t.Fatalf("unexpected brand.site_name: %v", brand["site_name"])
 	}
 	if brand["site_url"] != "https://example.com/path" {
@@ -379,10 +412,10 @@ func TestUpdateSiteSettingNormalizedDefaultAbout(t *testing.T) {
 	if !ok {
 		t.Fatalf("invalid brand payload type: %T", result["brand"])
 	}
-	if brand["site_name"] != "" {
+	if brand["site_name"] != "Gloamere" {
 		t.Fatalf("unexpected default brand payload: %+v", brand)
 	}
-	if brand["site_url"] != "" {
+	if brand["site_url"] != "https://gloamere.com" {
 		t.Fatalf("unexpected default brand payload: %+v", brand)
 	}
 	if brand["site_icon"] != "" {

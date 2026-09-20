@@ -1,8 +1,8 @@
-# Dujiao-Next User Web
+# Gloamere User Web
 
 The customer-facing storefront for browsing products, placing orders, and completing payments.
 
-> This directory is part of the [dujiao-next](https://github.com/dujiao-next/dujiao-next)
+> This directory is part of the [Gloamere repository](https://github.com/gloamere/dujiao-next)
 > single repository and is no longer released on its own. Production assets are embedded
 > into the server binary via `go:embed` and served by the same process, on the same port,
 > as `frontend/admin`.
@@ -38,4 +38,4 @@ GitHub Actions release workflow all build and embed the frontends for you.
 
 ## Documentation
 
-https://dujiao-next.com
+https://gloamere.com

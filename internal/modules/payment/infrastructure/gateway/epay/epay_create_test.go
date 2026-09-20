@@ -53,6 +53,47 @@ func TestCreatePaymentV1HandlesDoubleEncodedJSON(t *testing.T) {
 	}
 }
 
+func TestCreatePaymentV1AcceptsHTTPStyleSuccessCodeAndQRCode(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":200,"msg":"获取成功!","trade_no":"T20260920001","out_trade_no":"DJP-V1-200","type":"alipay","money":"1.00","qrcode":"https://qr.example.com/pay/200"}`))
+	}))
+	defer server.Close()
+
+	cfg := &Config{
+		GatewayURL:  server.URL,
+		EpayVersion: VersionV1,
+		MerchantID:  "1001",
+		MerchantKey: "merchant-key",
+		NotifyURL:   "https://shop.example.com/api/v1/payments/callback",
+		ReturnURL:   "https://shop.example.com/pay",
+		SignType:    epaySignTypeMD5,
+	}
+	cfg.Normalize()
+
+	result, err := CreatePayment(context.Background(), cfg, CreateInput{
+		OrderNo:     "DJP-V1-200",
+		Amount:      "1.00",
+		Subject:     "测试订单",
+		ChannelType: constants.PaymentChannelTypeAlipay,
+		ClientIP:    "127.0.0.1",
+		NotifyURL:   cfg.NotifyURL,
+		ReturnURL:   cfg.ReturnURL,
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment v1 failed: %v", err)
+	}
+	if result.TradeNo != "T20260920001" {
+		t.Fatalf("trade no = %s", result.TradeNo)
+	}
+	if result.QRCode != "https://qr.example.com/pay/200" {
+		t.Fatalf("qr code = %s", result.QRCode)
+	}
+	if result.Raw == nil || result.Raw["code"] != float64(http.StatusOK) {
+		t.Fatalf("raw response should be decoded into object, got %#v", result.Raw)
+	}
+}
+
 func TestCreatePaymentV2HandlesDoubleEncodedJSON(t *testing.T) {
 	privateKeyPEM, publicKeyPEM := generateEpayRSAKeyPair(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

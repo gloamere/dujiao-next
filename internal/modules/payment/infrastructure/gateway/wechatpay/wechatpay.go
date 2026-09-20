@@ -752,7 +752,7 @@ func newSecurityEchoMessage() (string, error) {
 	if _, err := rand.Read(randomBytes); err != nil {
 		return "", err
 	}
-	return "dujiao-next-" + hex.EncodeToString(randomBytes), nil
+	return "gloamere-" + hex.EncodeToString(randomBytes), nil
 }
 
 func validatePrivateKey(raw string) error {

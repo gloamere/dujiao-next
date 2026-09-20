@@ -1,34 +1,9 @@
-# Dujiao-Next
+# Gloamere
 
-Dujiao-Next is a digital goods e-commerce platform. This repository contains the complete
-application: the Go backend, the customer storefront, and the admin panel.
-
-## ❤️ Brand Partners (Sponsors)
-
-<table>
-
-<tr>
-<td width="180"><a href="https://www.vmrack.net/?ref_code=5iXmGUMf5f5"><img src="assets/partners/vmrack.jpeg" alt="CCTK.AI" width="150"></a></td>
-<td><a href="https://www.vmrack.net/?ref_code=5iXmGUMf5f5">Vmrack.com</a> 全球自动化云基础设施服务商 提供先进的云服务器、裸金属、CDN、媒体处理、对象存储和网络解决方案，助力企业轻松上云。
-⚡️官方合作闪购款，仅需76刀/年，三网优化线路，助力您业务起飞，<a href="https://www.vmrack.net/vps/flash-deals/2082383856451452928?ref_code=5iXmGUMf5f5">👉点我直达</a>
-</td>
-</tr>
-
-<tr>
-<td width="180"><a href="https://www.99cdn.com/"><img src="assets/partners/99cdn.jpg" alt="openmodel" width="150"></a></td>
-<td>99CDN 自建 CDN 平台，自主管理节点 · 智能流量调度 · 多级缓存加速。 <a href="https://www.99cdn.com/">99CDN</a> 是 EasyLink 旗下的商业化自建 CDN 与 DNS 智能调度平台，支持边缘缓存、分片缓存、多级回源、GTM 调度与边缘计算能力。</td>
-</tr>
-
-<tr>
-<td width="180"><a href="https://niub.me"><img src="assets/partners/niub.png" alt="openmodel" width="150"></a></td>
-<td> <a href="https://niub.me">NIUB — 数字服务，一站直达(DujiaoNext自营旗舰店)</a> 正在寻找更便捷的 AI 服务、社交账号或数字礼品卡？NIUB（niub.me）专注提供多种虚拟商品与数字服务，让不同类型的数字需求都能在一个站点完成选购。
-我们重视清晰的商品信息、明确的交付方式和负责任的售后支持。每件商品的账号类型、适用地区、有效期限、使用条件与售后范围，均以对应商品页面说明为准。
-访问 NIUB，探索更多数字服务与虚拟商品。</td>
-</tr>
-
-
-
-</table>
+[Gloamere](https://gloamere.com) is a digital goods e-commerce platform. This repository
+contains the Go backend, customer storefront, and admin panel. It is a customized
+distribution based on the [Dujiao-Next](https://github.com/dujiao-next/dujiao-next)
+open-source project and remains licensed under GPL v3.
 
 ## Tech Stack
 
@@ -172,7 +147,7 @@ On a fresh Ubuntu 22.04+ or Debian 12+ server, download and run the official
 interactive installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dujiao-next/dujiao-next/main/scripts/dujiao-next-manager.sh \
+curl -fsSL https://raw.githubusercontent.com/gloamere/dujiao-next/main/scripts/dujiao-next-manager.sh \
   -o /tmp/dujiao-next-manager.sh
 sudo bash /tmp/dujiao-next-manager.sh install
 ```
@@ -210,7 +185,7 @@ uninstall creates and verifies a `0600` recovery archive under
 
 ### Manual binary installation
 
-Download the latest `dujiao-next_*.tar.gz` from [Releases](https://github.com/dujiao-next/dujiao-next/releases):
+Download the latest `dujiao-next_*.tar.gz` from [Gloamere Releases](https://github.com/gloamere/dujiao-next/releases):
 
 ```bash
 tar -xzf dujiao-next_*.tar.gz
@@ -219,12 +194,13 @@ cp config.yml.example config.yml
 ./dujiao-next
 ```
 
-Full instructions: https://dujiao-next.com/deploy/
+Project website: https://gloamere.com
 
-Or with Docker:
+Or build and run the Gloamere image locally with Docker:
 
 ```bash
-docker run -d -p 8080:8080 -v $PWD/config.yml:/app/config.yml:ro dujiaonext/dujiao-next:latest
+docker build -t gloamere/dujiao-next:local .
+docker run -d -p 8080:8080 -v $PWD/config.yml:/app/config.yml:ro gloamere/dujiao-next:local
 ```
 
 ## Quick Start (Develop)
@@ -291,4 +267,4 @@ gateways and the like) outside it.
 
 ## Online Documentation
 
-- https://dujiao-next.com
+- https://gloamere.com

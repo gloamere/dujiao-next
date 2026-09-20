@@ -20,7 +20,7 @@ export function useForgot() {
 
   const brandSiteName = computed(() => {
     const siteName = String(appStore.config?.brand?.site_name || '').trim()
-    return siteName !== '' ? siteName : 'Dujiao-Next'
+    return siteName !== '' ? siteName : 'Gloamere'
   })
 
   const emailVerificationEnabled = computed(() => appStore.config?.email_verification_enabled !== false)

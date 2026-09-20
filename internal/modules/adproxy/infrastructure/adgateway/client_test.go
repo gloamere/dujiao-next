@@ -66,6 +66,16 @@ func TestClientReportImpressionPreservesJSONPayload(t *testing.T) {
 	}
 }
 
+func TestClientRejectsDisabledGateway(t *testing.T) {
+	client := NewClient(&http.Client{}, "")
+	if _, err := client.RenderSlot(context.Background(), "dashboard", nil); err == nil {
+		t.Fatal("expected disabled gateway render to fail")
+	}
+	if err := client.ReportImpression(context.Background(), json.RawMessage(`{}`)); err == nil {
+		t.Fatal("expected disabled gateway impression to fail")
+	}
+}
+
 func TestClientRejectsNonSuccessGatewayResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)

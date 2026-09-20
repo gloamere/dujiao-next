@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	userTotpIssuerDefault     = "Dujiao-Next-User"
+	userTotpIssuerDefault     = "Gloamere"
 	userTotpPendingTTL        = 10 * time.Minute
 	userTotpEnableMaxFailures = 5
 	RecoveryCodeCount         = 10

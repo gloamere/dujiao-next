@@ -47,6 +47,11 @@ type SiteBrand struct {
 	SiteURL  string
 }
 
+const (
+	defaultSiteName = "Gloamere"
+	defaultSiteURL  = "https://gloamere.com"
+)
+
 // RegistrationEmailDomainPolicy 描述注册邮箱域名白名单策略。
 type RegistrationEmailDomainPolicy struct {
 	Enabled        bool
@@ -365,28 +370,34 @@ func (s *Service) GetSiteCurrency(defaultValue string) (string, error) {
 
 // GetSiteBrand 获取站点品牌配置（brand.site_name / brand.site_url）
 func (s *Service) GetSiteBrand() (SiteBrand, error) {
+	fallback := SiteBrand{SiteName: defaultSiteName, SiteURL: defaultSiteURL}
 	if s == nil {
-		return SiteBrand{}, nil
+		return fallback, nil
 	}
 	value, err := s.GetByKey(constants.SettingKeySiteConfig)
 	if err != nil {
 		return SiteBrand{}, err
 	}
 	if value == nil {
-		return SiteBrand{}, nil
+		return fallback, nil
 	}
 	rawBrand, ok := value["brand"]
 	if !ok || rawBrand == nil {
-		return SiteBrand{}, nil
+		return fallback, nil
 	}
 	brand, ok := rawBrand.(map[string]interface{})
 	if !ok || brand == nil {
-		return SiteBrand{}, nil
+		return fallback, nil
 	}
-	return SiteBrand{
-		SiteName: normalizeSettingText(brand["site_name"]),
-		SiteURL:  strings.TrimRight(normalizeSettingText(brand["site_url"]), "/"),
-	}, nil
+	siteName := normalizeSettingText(brand["site_name"])
+	if siteName == "" || siteName == "Dujiao-Next" || siteName == "Dujiao Next" || siteName == "D&J Studio" {
+		siteName = defaultSiteName
+	}
+	siteURL := strings.TrimRight(normalizeSettingText(brand["site_url"]), "/")
+	if siteURL == "" || siteURL == "https://dujiao-next.com" {
+		siteURL = defaultSiteURL
+	}
+	return SiteBrand{SiteName: siteName, SiteURL: siteURL}, nil
 }
 
 // GetWalletOnlyPayment 获取是否仅允许钱包余额支付

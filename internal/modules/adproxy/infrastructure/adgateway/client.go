@@ -39,6 +39,9 @@ func NewClient(client *http.Client, baseURL string) *Client {
 
 // RenderSlot 请求 ad-system 渲染指定广告位
 func (s *Client) RenderSlot(ctx context.Context, slotCode string, params map[string]string) (*adproxydomain.RenderResponse, error) {
+	if s.baseURL == "" {
+		return nil, fmt.Errorf("ad_proxy: gateway disabled")
+	}
 	u, err := url.Parse(fmt.Sprintf("%s/api/v1/public/ad-slots/%s/render", s.baseURL, url.PathEscape(slotCode)))
 	if err != nil {
 		return nil, fmt.Errorf("ad_proxy: invalid url: %w", err)
@@ -89,6 +92,9 @@ func (s *Client) RenderSlot(ctx context.Context, slotCode string, params map[str
 
 // ReportImpression 上报广告曝光
 func (s *Client) ReportImpression(ctx context.Context, payload json.RawMessage) error {
+	if s.baseURL == "" {
+		return fmt.Errorf("ad_proxy: gateway disabled")
+	}
 	u := fmt.Sprintf("%s/api/v1/public/ad-events/impression", s.baseURL)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(payload))

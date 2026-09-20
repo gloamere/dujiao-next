@@ -400,7 +400,7 @@ onMounted(() => {
                   <SelectValue :placeholder="t('siteConnections.form.protocolPlaceholder')" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dujiao-next">dujiao-next</SelectItem>
+                  <SelectItem value="dujiao-next">Gloamere</SelectItem>
                 </SelectContent>
               </Select>
             </div>

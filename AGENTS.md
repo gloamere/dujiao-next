@@ -4,7 +4,7 @@
 
 ## 项目概览
 
-Dujiao-Next 是一个模块化单体数字商品商城：
+Gloamere 是基于 Dujiao-Next 定制的模块化单体数字商品商城：
 
 - 后端：Go、Gin、GORM，入口位于 `cmd/server/`。
 - 用户端：Vue 3 + Vite + TypeScript，位于 `frontend/user/`。

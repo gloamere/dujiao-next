@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	totpIssuerDefault     = "Dujiao-Next"
+	totpIssuerDefault     = "Gloamere"
 	totpPendingTTL        = 10 * time.Minute
 	totpEnableMaxFailures = 5
 	RecoveryCodeCount     = 10
