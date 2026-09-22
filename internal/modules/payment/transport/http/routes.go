@@ -43,6 +43,8 @@ func RegisterAdminRoutes(authorized gin.IRoutes, handler *AdminHandler) {
 	}
 	authorized.GET("/payments", handler.GetAdminPayments)
 	authorized.GET("/payments/export", handler.ExportAdminPayments)
+	authorized.GET("/payments/cleanup/preview", handler.PreviewAdminPaymentCleanup)
+	authorized.POST("/payments/cleanup", handler.CleanupAdminPayments)
 	authorized.GET("/payments/:id", handler.GetAdminPayment)
 }
 

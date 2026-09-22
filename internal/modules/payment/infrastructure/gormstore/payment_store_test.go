@@ -439,3 +439,41 @@ func TestLatestPaymentRestoreExcludesLegacyFeeLinksAndSupersededRows(t *testing.
 		t.Fatalf("unexpected superseded payment: %+v", stored)
 	}
 }
+
+func TestCleanupCandidatesProtectsLivePaymentsAndIsIdempotent(t *testing.T) {
+	repo, db := setupStoreTest(t)
+	for _, status := range []string{constants.PaymentStatusFailed, constants.PaymentStatusExpired, constants.PaymentStatusSuccess, constants.PaymentStatusPending, constants.PaymentStatusInitiated} {
+		for _, channel := range []string{"alipay", "wechat"} {
+			p := paymentdomain.Payment{Status: status, ChannelType: channel, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+			if err := db.Create(&p).Error; err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	filter := paymentcontract.CleanupFilter{ChannelType: "wechat"}
+	count, err := repo.CountCleanupCandidates(filter)
+	if err != nil || count != 2 {
+		t.Fatalf("preview: count=%d err=%v", count, err)
+	}
+	count, err = repo.CleanupCandidates(filter, time.Now())
+	if err != nil || count != 2 {
+		t.Fatalf("cleanup: count=%d err=%v", count, err)
+	}
+	count, err = repo.CleanupCandidates(filter, time.Now())
+	if err != nil || count != 0 {
+		t.Fatalf("repeat: count=%d err=%v", count, err)
+	}
+	var live int64
+	db.Model(&paymentdomain.Payment{}).Where("deleted_at IS NULL").Count(&live)
+	if live != 8 {
+		t.Fatalf("live rows=%d want 8", live)
+	}
+	count, err = repo.CleanupCandidates(paymentcontract.CleanupFilter{Status: constants.PaymentStatusSuccess}, time.Now())
+	if err != nil || count != 0 {
+		t.Fatalf("success must require explicit authorization: %d %v", count, err)
+	}
+	count, err = repo.CleanupCandidates(paymentcontract.CleanupFilter{Status: constants.PaymentStatusSuccess, ChannelType: "wechat", AllowedStatuses: []string{constants.PaymentStatusSuccess}}, time.Now())
+	if err != nil || count != 1 {
+		t.Fatalf("authorized success cleanup: %d %v", count, err)
+	}
+}

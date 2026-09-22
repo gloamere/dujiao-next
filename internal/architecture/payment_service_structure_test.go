@@ -16,6 +16,7 @@ func TestPaymentServiceImplementationIsSplitByResponsibility(t *testing.T) {
 			"SetProcurementService", "SetDownstreamCallbackService", "SetMemberLevelService",
 			"NewPaymentService", "ListPayments", "GetPayment", "ListChannels", "GetChannel",
 			"paymentLogger",
+			"PreviewPaymentCleanup", "CleanupPayments",
 		},
 		"payment_service_create.go": {"hasProviderResult", "CreatePayment"},
 		"payment_service_recharge.go": {

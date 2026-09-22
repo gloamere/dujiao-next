@@ -2,6 +2,7 @@ package application
 
 import (
 	"errors"
+	"time"
 
 	"github.com/dujiao-next/internal/config"
 	"github.com/dujiao-next/internal/logger"
@@ -195,4 +196,30 @@ func paymentLogger(kv ...interface{}) *zap.SugaredLogger {
 		return logger.S()
 	}
 	return logger.SW(kv...)
+}
+
+// PreviewPaymentCleanup 统计当前管理员授权状态范围内可清理的支付记录。
+func (s *PaymentService) PreviewPaymentCleanup(filter paymentcontract.CleanupFilter) (int64, error) {
+	cleanupRepo, ok := s.paymentRepo.(paymentcontract.CleanupStore)
+	if !ok {
+		return 0, ErrPaymentUpdateFailed
+	}
+	count, err := cleanupRepo.CountCleanupCandidates(filter)
+	if err != nil {
+		return 0, ErrPaymentUpdateFailed
+	}
+	return count, nil
+}
+
+// CleanupPayments 软删除当前管理员授权状态范围内的支付记录。
+func (s *PaymentService) CleanupPayments(filter paymentcontract.CleanupFilter, deletedAt time.Time) (int64, error) {
+	cleanupRepo, ok := s.paymentRepo.(paymentcontract.CleanupStore)
+	if !ok {
+		return 0, ErrPaymentUpdateFailed
+	}
+	affected, err := cleanupRepo.CleanupCandidates(filter, deletedAt)
+	if err != nil {
+		return 0, ErrPaymentUpdateFailed
+	}
+	return affected, nil
 }

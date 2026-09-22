@@ -187,6 +187,8 @@ func BuiltinRoleSeeds() []RoleSeed {
 				{Object: "/admin/payments", Action: "GET"},
 				{Object: "/admin/payments/:id", Action: "GET"},
 				{Object: "/admin/payments/export", Action: "GET"},
+				{Object: "/admin/payments/cleanup/preview", Action: "GET"},
+				{Object: "/admin/payments/cleanup", Action: "POST"},
 				{Object: "/admin/payment-channels", Action: "*"},
 				{Object: "/admin/payment-channels/:id", Action: "*"},
 				{Object: "/admin/payment-channels/:id/wechatpay-public-key-test", Action: "POST"},

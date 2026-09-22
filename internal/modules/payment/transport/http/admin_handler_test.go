@@ -616,3 +616,38 @@ func TestGetAdminPaymentsBadQueryReturnsBadRequestCode(t *testing.T) {
 		t.Fatalf("status_code want 400 got %d", resp.StatusCode)
 	}
 }
+
+func TestPaymentCleanupScopeRequiresSuperAdminAndExplicitStatus(t *testing.T) {
+	for _, tc := range []struct {
+		name, query                string
+		super, wantError, elevated bool
+	}{
+		{"default", "?channel_type=wechat", false, false, false},
+		{"protected_denied", "?cleanup_scope=super_status&status=success", false, true, false},
+		{"protected_missing_status", "?cleanup_scope=super_status", true, true, false},
+		{"protected_allowed", "?cleanup_scope=super_status&status=success", true, false, true},
+		{"unknown_scope", "?cleanup_scope=all", true, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodGet, "/"+tc.query, nil)
+			c.Set("admin_is_super", tc.super)
+			f, statuses, elevated, err := buildAdminPaymentCleanupFilter(c)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("err=%v wantError=%v", err, tc.wantError)
+			}
+			if err != nil {
+				return
+			}
+			if elevated != tc.elevated {
+				t.Fatalf("unexpected elevated=%v", elevated)
+			}
+			if tc.name == "default" && (f.ChannelType != "wechat" || len(statuses) != 2) {
+				t.Fatalf("default filter=%+v", f)
+			}
+			if elevated && (len(statuses) != 1 || statuses[0] != "success") {
+				t.Fatalf("protected statuses=%v", statuses)
+			}
+		})
+	}
+}

@@ -213,32 +213,34 @@ func (s *Service) CreateAuto(orderID uint) (*fulfillmentdomain.Fulfillment, erro
 		return nil, ErrFulfillmentInvalid
 	}
 
-	order, err := s.orderStore.GetByID(orderID)
-	if err != nil {
-		return nil, ErrOrderFetchFailed
-	}
-	if order == nil {
-		return nil, ErrOrderNotFound
-	}
-	if order.ParentID == nil && len(order.Children) > 0 {
-		return nil, ErrFulfillmentInvalid
-	}
-	if order.Status != constants.OrderStatusPaid {
-		return nil, ErrOrderStatusInvalid
-	}
-	if len(order.Items) == 0 {
-		return nil, ErrFulfillmentInvalid
-	}
-
-	for _, item := range order.Items {
-		if strings.TrimSpace(item.FulfillmentType) != constants.FulfillmentTypeAuto {
-			return nil, ErrFulfillmentNotAuto
-		}
-	}
-
 	now := time.Now()
+	var order *orderdomain.Order
 	var fulfillment *fulfillmentdomain.Fulfillment
-	err = s.orderStore.WithinTransaction(func(tx ordercontract.Transaction) error {
+	err := s.orderStore.WithinTransaction(func(tx ordercontract.Transaction) error {
+		// 与取消、退款共用订单行锁，发卡前在事务内重新验证状态。
+		lockedOrder, err := tx.Orders().GetByIDForUpdateWithChildren(orderID)
+		if err != nil {
+			return err
+		}
+		order = lockedOrder
+		if order == nil {
+			return ErrOrderNotFound
+		}
+		if order.ParentID == nil && len(order.Children) > 0 {
+			return ErrFulfillmentInvalid
+		}
+		if order.Status != constants.OrderStatusPaid {
+			return ErrOrderStatusInvalid
+		}
+		if len(order.Items) == 0 {
+			return ErrFulfillmentInvalid
+		}
+
+		for _, item := range order.Items {
+			if strings.TrimSpace(item.FulfillmentType) != constants.FulfillmentTypeAuto {
+				return ErrFulfillmentNotAuto
+			}
+		}
 		if _, found, err := tx.Fulfillments().FindByOrderIDForUpdate(orderID); err != nil {
 			return err
 		} else if found {
@@ -324,6 +326,8 @@ func (s *Service) CreateAuto(orderID uint) (*fulfillmentdomain.Fulfillment, erro
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, ErrOrderNotFound), errors.Is(err, ErrOrderStatusInvalid), errors.Is(err, ErrFulfillmentInvalid):
+			return nil, err
 		case errors.Is(err, ErrFulfillmentExists):
 			return nil, ErrFulfillmentExists
 		case errors.Is(err, ErrCardSecretInsufficient):

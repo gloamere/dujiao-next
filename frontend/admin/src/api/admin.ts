@@ -416,6 +416,14 @@ export const adminAPI = {
   getPayments: (params?: Record<string, unknown>) => api.get('/admin/payments', { params }),
   getPayment: (id: number) => api.get(`/admin/payments/${id}`),
   exportPayments: (params?: Record<string, unknown>) => api.get('/admin/payments/export', { params, blob: true }),
+  previewPaymentCleanup: (params?: Record<string, unknown>, scope: 'invalid' | 'super_status' = 'invalid') => api.get('/admin/payments/cleanup/preview', {
+    params: { ...params, cleanup_scope: scope === 'super_status' ? scope : undefined },
+  }),
+  cleanupPayments: (params?: Record<string, unknown>, scope: 'invalid' | 'super_status' = 'invalid') => api.post('/admin/payments/cleanup', {
+    confirmation: scope === 'super_status' ? 'DELETE_SUPER_PAYMENT_STATUS' : 'CLEAR_INVALID_PAYMENTS',
+  }, {
+    params: { ...params, cleanup_scope: scope === 'super_status' ? scope : undefined },
+  }),
   createPaymentChannel: (data: Partial<AdminPaymentChannel>) => api.post('/admin/payment-channels', data),
   getPaymentChannels: (params?: Record<string, unknown>) => api.get('/admin/payment-channels', { params }),
   getPaymentChannel: (id: number) => api.get(`/admin/payment-channels/${id}`),

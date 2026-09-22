@@ -4,6 +4,10 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"github.com/dujiao-next/internal/constants"
+	auditlogapp "github.com/dujiao-next/internal/modules/auditlog/application"
+	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	"strconv"
 	"strings"
 	"time"
@@ -79,10 +83,12 @@ type paymentRechargeMeta struct {
 
 // AdminHandler 处理后台支付只读 HTTP。
 type AdminHandler struct {
-	payments AdminPaymentQuery
-	channels AdminChannelLookup
-	orders   AdminOrderLookup
-	recharge AdminRechargeLookup
+	cleanup      AdminCleanup
+	cleanupAudit CleanupAudit
+	payments     AdminPaymentQuery
+	channels     AdminChannelLookup
+	orders       AdminOrderLookup
+	recharge     AdminRechargeLookup
 }
 
 func NewAdminHandler(payments AdminPaymentQuery, channels AdminChannelLookup, orders AdminOrderLookup, recharge AdminRechargeLookup) *AdminHandler {
@@ -434,4 +440,165 @@ func (h *AdminHandler) resolvePaymentRechargeMeta(payments []paymentdomain.Payme
 		}
 	}
 	return result, nil
+}
+
+type AdminCleanup interface {
+	PreviewPaymentCleanup(paymentcontract.CleanupFilter) (int64, error)
+	CleanupPayments(paymentcontract.CleanupFilter, time.Time) (int64, error)
+}
+type CleanupAudit interface {
+	Record(auditlogapp.AuthzRecord) error
+}
+
+func (h *AdminHandler) WithCleanup(cleanup AdminCleanup, audit CleanupAudit) *AdminHandler {
+	if cleanup == nil || audit == nil {
+		panic("payment cleanup: required dependency is nil")
+	}
+	h.cleanup = cleanup
+	h.cleanupAudit = audit
+	return h
+}
+func (h *AdminHandler) recordCleanupAudit(c *gin.Context, input auditlogapp.AuthzRecord) {
+	if err := h.cleanupAudit.Record(input); err != nil {
+		ginutil.RequestLog(c).Errorw("payment_cleanup_audit_failed", "error", err, "operator_admin_id", input.OperatorAdminID)
+	}
+}
+
+const adminPaymentCleanupConfirmation = "CLEAR_INVALID_PAYMENTS"
+const adminPaymentSuperCleanupConfirmation = "DELETE_SUPER_PAYMENT_STATUS"
+const adminPaymentCleanupScopeSuperStatus = "super_status"
+
+var errAdminPaymentCleanupSuperRequired = errors.New("super admin is required for protected payment cleanup")
+
+type adminPaymentCleanupRequest struct {
+	Confirmation string `json:"confirmation" binding:"required"`
+}
+
+// PreviewAdminPaymentCleanup 预览当前筛选条件下可清理的支付记录数。
+func (h *AdminHandler) PreviewAdminPaymentCleanup(c *gin.Context) {
+	filter, eligibleStatuses, elevated, err := buildAdminPaymentCleanupFilter(c)
+	if err != nil {
+		if errors.Is(err, errAdminPaymentCleanupSuperRequired) {
+			ginutil.RespondError(c, response.CodeForbidden, "error.forbidden", nil)
+			return
+		}
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", err)
+		return
+	}
+	count, err := h.cleanup.PreviewPaymentCleanup(filter)
+	if err != nil {
+		ginutil.RespondError(c, response.CodeInternal, "error.payment_fetch_failed", err)
+		return
+	}
+	response.Success(c, gin.H{
+		"count":             count,
+		"eligible_statuses": eligibleStatuses,
+		"elevated":          elevated,
+	})
+}
+
+// CleanupAdminPayments 软删除当前筛选条件下、管理员被授权清理的支付记录。
+func (h *AdminHandler) CleanupAdminPayments(c *gin.Context) {
+	var req adminPaymentCleanupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	filter, eligibleStatuses, elevated, err := buildAdminPaymentCleanupFilter(c)
+	if err != nil {
+		if errors.Is(err, errAdminPaymentCleanupSuperRequired) {
+			ginutil.RespondError(c, response.CodeForbidden, "error.forbidden", nil)
+			return
+		}
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", err)
+		return
+	}
+	expectedConfirmation := adminPaymentCleanupConfirmation
+	if elevated {
+		expectedConfirmation = adminPaymentSuperCleanupConfirmation
+	}
+	if strings.TrimSpace(req.Confirmation) != expectedConfirmation {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+
+	affected, err := h.cleanup.CleanupPayments(filter, time.Now())
+	if err != nil {
+		ginutil.RespondError(c, response.CodeInternal, "error.payment_update_failed", err)
+		return
+	}
+
+	h.recordCleanupAudit(c, auditlogapp.AuthzRecord{
+		OperatorAdminID:  c.GetUint("admin_id"),
+		OperatorUsername: strings.TrimSpace(c.GetString("username")),
+		Action:           "payment_records_cleanup",
+		Object:           "/admin/payments/cleanup",
+		Method:           "POST",
+		RequestID:        strings.TrimSpace(c.GetString("request_id")),
+		Detail: jsonmap.JSON{
+			"affected":          affected,
+			"eligible_statuses": eligibleStatuses,
+			"elevated":          elevated,
+			"filters": jsonmap.JSON{
+				"user_id":       filter.UserID,
+				"order_id":      filter.OrderID,
+				"channel_id":    filter.ChannelID,
+				"provider_type": filter.ProviderType,
+				"status":        filter.Status,
+				"created_from":  formatTimeNullable(filter.CreatedFrom),
+				"created_to":    formatTimeNullable(filter.CreatedTo),
+			},
+		},
+	})
+
+	ginutil.RequestLog(c).Infow("admin_payment_records_cleaned",
+		"operator_admin_id", c.GetUint("admin_id"),
+		"affected", affected,
+		"eligible_statuses", eligibleStatuses,
+		"elevated", elevated,
+	)
+	response.Success(c, gin.H{"affected": affected})
+}
+
+func buildAdminPaymentCleanupFilter(c *gin.Context) (paymentcontract.CleanupFilter, []string, bool, error) {
+	listFilter, err := buildAdminPaymentFilter(c, 1, 1)
+	if err != nil {
+		return paymentcontract.CleanupFilter{}, nil, false, err
+	}
+	eligibleStatuses := []string{constants.PaymentStatusFailed, constants.PaymentStatusExpired}
+	elevated := false
+	scope := strings.TrimSpace(c.Query("cleanup_scope"))
+	if scope != "" && scope != adminPaymentCleanupScopeSuperStatus {
+		return paymentcontract.CleanupFilter{}, nil, false, fmt.Errorf("invalid cleanup scope")
+	}
+	if scope == adminPaymentCleanupScopeSuperStatus {
+		if !ginutil.IsSuperAdmin(c) {
+			return paymentcontract.CleanupFilter{}, nil, false, errAdminPaymentCleanupSuperRequired
+		}
+		if !isProtectedPaymentCleanupStatus(listFilter.Status) {
+			return paymentcontract.CleanupFilter{}, nil, false, fmt.Errorf("protected cleanup requires an explicit status")
+		}
+		eligibleStatuses = []string{listFilter.Status}
+		elevated = true
+	}
+	return paymentcontract.CleanupFilter{
+		UserID:          listFilter.UserID,
+		OrderID:         listFilter.OrderID,
+		ChannelID:       listFilter.ChannelID,
+		ProviderType:    listFilter.ProviderType,
+		ChannelType:     listFilter.ChannelType,
+		Status:          listFilter.Status,
+		CreatedFrom:     listFilter.CreatedFrom,
+		CreatedTo:       listFilter.CreatedTo,
+		AllowedStatuses: eligibleStatuses,
+	}, eligibleStatuses, elevated, nil
+}
+
+func isProtectedPaymentCleanupStatus(status string) bool {
+	switch strings.TrimSpace(status) {
+	case constants.PaymentStatusSuccess, constants.PaymentStatusPending, constants.PaymentStatusInitiated:
+		return true
+	default:
+		return false
+	}
 }

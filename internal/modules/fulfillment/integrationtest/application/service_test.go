@@ -1,7 +1,9 @@
 package application_test
 
 import (
+	"errors"
 	"fmt"
+	ordercontract "github.com/dujiao-next/internal/modules/order/contract"
 	"strings"
 	"testing"
 	"time"
@@ -148,5 +150,49 @@ func TestCreateAutoFulfillmentRespectsSKUBoundary(t *testing.T) {
 	}
 	if orderAfter.Status != constants.OrderStatusCompleted {
 		t.Fatalf("order status want completed got %s", orderAfter.Status)
+	}
+}
+
+type statusChangingOrderStore struct {
+	ordercontract.Store
+	db      *gorm.DB
+	orderID uint
+}
+
+func (s *statusChangingOrderStore) WithinTransaction(fn func(ordercontract.Transaction) error) error {
+	if err := s.db.Model(&orderdomain.Order{}).Where("id = ?", s.orderID).Update("status", constants.OrderStatusCanceled).Error; err != nil {
+		return err
+	}
+	return s.Store.WithinTransaction(fn)
+}
+func TestCreateAutoRechecksOrderStatusInsideTransaction(t *testing.T) {
+	db := setupFulfillmentServiceTestDB(t)
+	order := orderdomain.Order{OrderNo: "CANCELED-BEFORE-LOCK", Status: constants.OrderStatusPaid, Currency: "CNY"}
+	if err := db.Create(&order).Error; err != nil {
+		t.Fatal(err)
+	}
+	item := orderdomain.OrderItem{OrderID: order.ID, ProductID: 100, SKUID: 1001, Quantity: 1, TitleJSON: jsonmap.JSON{"en-US": "Test"}, FulfillmentType: constants.FulfillmentTypeAuto}
+	if err := db.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+	card := cardsecretdomain.Secret{ProductID: 100, SKUID: 1001, Secret: "NOT-ISSUED", Status: cardsecretdomain.StatusAvailable}
+	if err := db.Create(&card).Error; err != nil {
+		t.Fatal(err)
+	}
+	store := &statusChangingOrderStore{Store: ordergormstore.New(db, "test-guest-credential-secret-with-32-bytes"), db: db, orderID: order.ID}
+	svc := New(Options{OrderStore: store, FulfillmentStore: fulfillmentgormstore.New(db)})
+	if _, err := svc.CreateAuto(order.ID); !errors.Is(err, ErrOrderStatusInvalid) {
+		t.Fatalf("want invalid order status, got %v", err)
+	}
+	var count int64
+	db.Model(&fulfillmentdomain.Fulfillment{}).Where("order_id = ?", order.ID).Count(&count)
+	if count != 0 {
+		t.Fatalf("canceled order got fulfillment")
+	}
+	if err := db.First(&card, card.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if card.Status != cardsecretdomain.StatusAvailable {
+		t.Fatalf("card consumed")
 	}
 }

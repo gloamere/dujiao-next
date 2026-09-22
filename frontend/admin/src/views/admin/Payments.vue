@@ -3,7 +3,7 @@ import { onMounted, reactive, ref, watch, computed } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Copy } from 'lucide-vue-next'
+import { Copy, Trash2 } from 'lucide-vue-next'
 import { adminAPI } from '@/api/admin'
 import type { AdminPayment } from '@/api/types'
 import IdCell from '@/components/IdCell.vue'
@@ -20,6 +20,8 @@ import { paymentStatusClass, paymentStatusLabel } from '@/utils/status'
 import ComplianceGuardWrapper from '@/components/ComplianceGuardWrapper.vue'
 import { copyText } from '@/utils/clipboard'
 import { formatDate, toRFC3339 } from '@/utils/format'
+import { confirmAction } from '@/utils/confirm'
+import { useAdminAuthStore } from '@/stores/auth'
 import { adminUrl } from '@/utils/adminBase'
 
 const loading = ref(true)
@@ -50,6 +52,27 @@ const detailError = ref('')
 const detailPayment = ref<AdminPayment | null>(null)
 const exporting = ref(false)
 const exportError = ref('')
+const cleanupLoading = ref(false)
+const cleanupError = ref('')
+const cleanupSuccess = ref('')
+const authStore = useAdminAuthStore()
+const canCleanupPayments = computed(() => authStore.hasPermission('POST:/admin/payments/cleanup'))
+const protectedCleanupStatuses = new Set(['success', 'pending', 'initiated'])
+const selectedCleanupStatus = computed(() => normalizeFilterValue(filters.status))
+const isSuperStatusCleanup = computed(() => (
+  authStore.isSuper && protectedCleanupStatuses.has(selectedCleanupStatus.value)
+))
+
+const currentFilterParams = () => ({
+  status: normalizeFilterValue(filters.status) || undefined,
+  user_id: filters.userId || undefined,
+  order_id: filters.orderId || undefined,
+  channel_id: filters.channelId || undefined,
+  channel_type: normalizeFilterValue(filters.channelType) || undefined,
+  provider_type: normalizeFilterValue(filters.providerType) || undefined,
+  created_from: toRFC3339(filters.createdFrom),
+  created_to: toRFC3339(filters.createdTo),
+})
 
 // 动态获取的筛选选项：channelType 按 providerType 联动
 const rawChannels = ref<Array<{ provider_type: string; channel_type: string }>>([])
@@ -185,6 +208,76 @@ const handleExport = async () => {
     exportError.value = t('admin.payments.exportFailed')
   } finally {
     exporting.value = false
+  }
+}
+
+const handleCleanup = async () => {
+  cleanupError.value = ''
+  cleanupSuccess.value = ''
+  cleanupLoading.value = true
+  try {
+    const params = currentFilterParams()
+    const scope = isSuperStatusCleanup.value ? 'super_status' : 'invalid'
+    const preview = await adminAPI.previewPaymentCleanup(params, scope)
+    const count = Number(preview?.data?.data?.count || 0)
+    if (count <= 0) {
+      cleanupSuccess.value = t(
+        isSuperStatusCleanup.value
+          ? 'admin.payments.superCleanupEmpty'
+          : 'admin.payments.cleanupEmpty',
+      )
+      return
+    }
+
+    const selectedStatusLabel = selectedCleanupStatus.value
+      ? t(`payment.status.${selectedCleanupStatus.value}`)
+      : ''
+    const confirmed = await confirmAction({
+      title: t(
+        isSuperStatusCleanup.value
+          ? 'admin.payments.superCleanupTitle'
+          : 'admin.payments.cleanupTitle',
+      ),
+      description: [
+        {
+          text: t(
+            isSuperStatusCleanup.value
+              ? 'admin.payments.superCleanupConfirmPrefix'
+              : 'admin.payments.cleanupConfirmPrefix',
+          ),
+        },
+        { text: String(count), tone: 'danger', strong: true },
+        {
+          text: t(
+            isSuperStatusCleanup.value
+              ? 'admin.payments.superCleanupConfirmSuffix'
+              : 'admin.payments.cleanupConfirmSuffix',
+            { status: selectedStatusLabel },
+          ),
+        },
+      ],
+      confirmText: t(
+        isSuperStatusCleanup.value
+          ? 'admin.payments.superCleanupConfirm'
+          : 'admin.payments.cleanupConfirm',
+      ),
+      variant: 'destructive',
+    })
+    if (!confirmed) return
+
+    const response = await adminAPI.cleanupPayments(params, scope)
+    const affected = Number(response?.data?.data?.affected || 0)
+    cleanupSuccess.value = t(
+      isSuperStatusCleanup.value
+        ? 'admin.payments.superCleanupSuccess'
+        : 'admin.payments.cleanupSuccess',
+      { count: affected },
+    )
+    await fetchPayments(1)
+  } catch (error: any) {
+    cleanupError.value = error?.message || t('admin.payments.cleanupFailed')
+  } finally {
+    cleanupLoading.value = false
   }
 }
 
@@ -439,6 +532,19 @@ watch(
         </div>
         <div class="hidden flex-1 sm:block"></div>
         <Button size="sm" variant="outline" class="w-full sm:w-auto" :disabled="refreshing" @click="refresh">{{ t('admin.common.refresh') }}</Button>
+        <Button
+          v-if="canCleanupPayments"
+          size="sm"
+          variant="destructive"
+          class="w-full gap-2 sm:w-auto"
+          :disabled="cleanupLoading"
+          @click="handleCleanup"
+        >
+          <Trash2 class="h-4 w-4" />
+          {{ cleanupLoading
+            ? t('admin.payments.cleanupLoading')
+            : t(isSuperStatusCleanup ? 'admin.payments.superCleanup' : 'admin.payments.cleanup') }}
+        </Button>
         <Button size="sm" :disabled="exporting" @click="handleExport">
           {{ exporting ? t('admin.payments.exporting') : t('admin.payments.export') }}
         </Button>
@@ -447,6 +553,13 @@ watch(
 
     <div v-if="exportError" class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
       {{ exportError }}
+    </div>
+
+    <div v-if="cleanupError" class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+      {{ cleanupError }}
+    </div>
+    <div v-if="cleanupSuccess" class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
+      {{ cleanupSuccess }}
     </div>
 
     <div class="rounded-xl border border-border bg-card overflow-x-auto">
