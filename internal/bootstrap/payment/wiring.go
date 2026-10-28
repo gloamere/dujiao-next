@@ -15,6 +15,7 @@ type Handlers struct {
 	AdminChannel *paymenttransport.AdminChannelHandler
 	Webhook      *paymenttransport.WebhookHandler
 	Callback     *paymentcallbacktransport.Handler
+	EpayRedirect *paymenttransport.EpayRedirectHandler
 }
 
 // New assembles payment transports from application services and HTTP handlers.
@@ -39,6 +40,7 @@ func New(c *container.Container) Handlers {
 			adminChannelLookupAdapter{channels: c.PaymentChannelStore},
 			adminOrderLookupAdapter{orders: c.OrderStore},
 			adminRechargeLookupAdapter{wallets: c.WalletRepo},
+			adminPaymentConfirmerAdapter{payments: c.PaymentService},
 		),
 		AdminChannel: paymenttransport.NewAdminChannelHandler(
 			adminChannelCatalogAdapter{payments: c.PaymentService, channels: c.PaymentChannelStore},
@@ -53,5 +55,6 @@ func New(c *container.Container) Handlers {
 			c.PaymentChannelStore,
 			alerter,
 		),
+		EpayRedirect: paymenttransport.NewEpayRedirectHandler(c.PaymentStore),
 	}
 }
