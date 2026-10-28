@@ -61,3 +61,51 @@ func TestAdminHandlerRejectsGoogleAuthOnGenericUpdate(t *testing.T) {
 		t.Fatalf("unexpected rejection message: %q", body.Msg)
 	}
 }
+
+// 有专用接口的配置一律不能走通用接口，否则会跳过校验与运行时生效。
+func TestAdminHandlerRejectsDedicatedKeysOnGenericUpdate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for key, endpoint := range dedicatedSettingEndpoints {
+		stub := &adminSettingsStub{}
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings", strings.NewReader(`{"key":"`+key+`","value":{}}`))
+		ctx.Request.Header.Set("Content-Type", "application/json")
+		NewAdminHandler(stub).Update(ctx)
+		if stub.updateCalls != 0 || !strings.Contains(recorder.Body.String(), endpoint) {
+			t.Fatalf("%s: generic update must be rejected with hint %s, body=%s", key, endpoint, recorder.Body.String())
+		}
+	}
+}
+
+func TestAdminHandlerLocalizesDedicatedSettingRejection(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, tt := range []struct {
+		locale string
+		want   string
+	}{
+		{"zh-CN", "smtp_config 必须通过 /admin/settings/smtp 更新"},
+		{"zh-TW", "smtp_config 必須透過 /admin/settings/smtp 更新"},
+		{"en-US", "smtp_config must be updated through /admin/settings/smtp"},
+	} {
+		t.Run(tt.locale, func(t *testing.T) {
+			stub := &adminSettingsStub{}
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings", strings.NewReader(`{"key":"smtp_config","value":{}}`))
+			ctx.Request.Header.Set("Content-Type", "application/json")
+			ctx.Request.Header.Set("X-Lang", tt.locale)
+			NewAdminHandler(stub).Update(ctx)
+			var body struct {
+				StatusCode int    `json:"status_code"`
+				Msg        string `json:"msg"`
+			}
+			if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if body.StatusCode != 400 || body.Msg != tt.want || stub.updateCalls != 0 {
+				t.Fatalf("status=%d msg=%q updateCalls=%d; want rejection %q", body.StatusCode, body.Msg, stub.updateCalls, tt.want)
+			}
+		})
+	}
+}
