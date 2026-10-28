@@ -77,3 +77,35 @@ func TestAdminHandlerRejectsDedicatedKeysOnGenericUpdate(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminHandlerLocalizesDedicatedSettingRejection(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, tt := range []struct {
+		locale string
+		want   string
+	}{
+		{"zh-CN", "smtp_config 必须通过 /admin/settings/smtp 更新"},
+		{"zh-TW", "smtp_config 必須透過 /admin/settings/smtp 更新"},
+		{"en-US", "smtp_config must be updated through /admin/settings/smtp"},
+	} {
+		t.Run(tt.locale, func(t *testing.T) {
+			stub := &adminSettingsStub{}
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings", strings.NewReader(`{"key":"smtp_config","value":{}}`))
+			ctx.Request.Header.Set("Content-Type", "application/json")
+			ctx.Request.Header.Set("X-Lang", tt.locale)
+			NewAdminHandler(stub).Update(ctx)
+			var body struct {
+				StatusCode int    `json:"status_code"`
+				Msg        string `json:"msg"`
+			}
+			if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if body.StatusCode != 400 || body.Msg != tt.want || stub.updateCalls != 0 {
+				t.Fatalf("status=%d msg=%q updateCalls=%d; want rejection %q", body.StatusCode, body.Msg, stub.updateCalls, tt.want)
+			}
+		})
+	}
+}
