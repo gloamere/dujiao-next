@@ -6,6 +6,7 @@ import (
 
 	"github.com/dujiao-next/internal/cache"
 	"github.com/dujiao-next/internal/constants"
+	"github.com/dujiao-next/internal/i18n"
 	settingsapp "github.com/dujiao-next/internal/modules/settings/application"
 	ginutil "github.com/dujiao-next/internal/platform/http/ginutil"
 	"github.com/dujiao-next/internal/platform/http/response"
@@ -86,7 +87,7 @@ func (h *AdminHandler) Update(c *gin.Context) {
 		ginutil.RespondErrorWithMsg(
 			c,
 			response.CodeBadRequest,
-			key+" must be updated through "+endpoint,
+			i18n.Sprintf(i18n.ResolveLocale(c), "error.settings_dedicated_endpoint_required", key, endpoint),
 			nil,
 		)
 		return

@@ -14,7 +14,7 @@ const (
 type InviteCode struct {
 	ID        uint       `gorm:"primarykey" json:"id"`                                           // 主键
 	Code      string     `gorm:"type:varchar(32);uniqueIndex;not null" json:"code"`              // 邀请码（大写）
-	MaxUses   int        `gorm:"not null;default:1" json:"max_uses"`                             // 可用次数，0 为不限
+	MaxUses   int        `gorm:"not null;default:0" json:"max_uses"`                             // 可用次数，0 为不限
 	UsedCount int        `gorm:"not null;default:0" json:"used_count"`                           // 已用次数
 	ExpiresAt *time.Time `gorm:"index" json:"expires_at"`                                        // 过期时间
 	Status    string     `gorm:"type:varchar(16);index;not null;default:'active'" json:"status"` // 状态
